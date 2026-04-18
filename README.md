@@ -25,13 +25,13 @@ For uninstallation just search online or you already know how.
 
 ## Config
 
-For any changes or custom configurations you can edit the config.txt located in the same directory as the binary rust-governor.exe and edit the configuration or add more parameters like this.
+For any changes or custom configurations you can edit the config.txt located in the same directory as the binary rust-governor and edit the configuration or add more parameters like this.
 
 `dc_` or `ac_` <= this is the state in which it'll be applied AC (Wall power) or DC (Battery).
 
 The number between state and type is the cpu usage which it'll be applied around for example `ac_15_epp=80` this will apply epp 80 when cpu usage is below 15 percent and above the value before 15 set in config.txt.
 
-The type is the parameter in Windows 11 that it'll be applied to for example `ac_45_governor=1` if cpu usage is around 45 it'll apply value 1 to cooling parameter in the power plan
+The type is the parameter that it'll be applied to for example `ac_45_governor=1` if cpu usage is around 45 it'll apply value 1 to cooling parameter.
 
 Lastly the value after the '=' sign is the value that's going to be applied for example `ac_70_turbo=1` this will apply when the system is running on AC and  below 70 percent CPU usage above the value of the next parameter lower than it then set turbo to 1 (Enabled).
 
