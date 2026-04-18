@@ -25,7 +25,7 @@ For uninstallation just search online or you already know how.
 
 ## Config
 
-For any changes or custom configurations you can edit the config.txt located in the same directory as the binary rust-governor and edit the configuration or add more parameters like this.
+For any changes or custom configurations you can edit the config.txt located in /etc/RustGovernor/config.txt and edit the configuration or add more parameters like this.
 
 `dc_` or `ac_` <= this is the state in which it'll be applied AC (Wall power) or DC (Battery).
 
