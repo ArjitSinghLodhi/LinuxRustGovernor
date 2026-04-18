@@ -21,6 +21,7 @@ I was first trying to port my Windows 11 version of this, then it turned into cu
 1. First download the rustgovernor binary and install.sh
 2. Then run install.sh it'll copy the binary to /usr/local/bin and setup the service for you.
 3. Then you can reboot and let it run
+
 For uninstallation just search online or you already know how.
 
 ## Config
