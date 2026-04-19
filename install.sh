@@ -1,6 +1,7 @@
 pkill -9 -f rustgovernor
 sudo rm /usr/local/bin/rustgovernor
 sudo cp rustgovernor /usr/local/bin/
+sudo chmod +x /usr/local/bin/rustgovernor
 
 # 3. Create Systemd Service
 cat <<EOF | sudo tee /etc/systemd/system/rustgovernor.service
