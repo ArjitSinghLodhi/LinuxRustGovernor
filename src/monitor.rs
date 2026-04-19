@@ -1,7 +1,5 @@
 use std::{fs, thread, time::Duration};
-
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
-
 use crate::backend::{Config, FilePaths, GovernorState, PowerManager};
 
 pub fn monitor_handling() {
@@ -30,7 +28,12 @@ pub fn monitor_handling() {
         let turbo_val = fs::read_to_string(&paths.boost_paths[0].join("no_turbo"))
             .unwrap_or_else(|_| "1".into());
         let turbo_status = if turbo_val.trim() == "0" { "ON" } else { "OFF" };
-
+        println!("=== RustGovernor Monitor [v1.0.0] ===");
+        println!(
+            "Source: [{}] | Avg Load: {:.2}%",
+            if is_ac { "AC" } else { "DC" },
+            state.avg_load
+        );
         println!("Governor:  {}", real_gov.trim());
         println!("EPP:       {}", real_epp.trim());
         println!("Turbo:     {}", turbo_status);
