@@ -72,7 +72,6 @@ ac_40_epp=balance_power
 ac_60_epp=balance_performance
 ac_80_epp=performance
 ac_100_epp=performance
-ac_cooling_threshold=45
 dc_cap_governor=powersave
 dc_15_governor=powersave
 dc_40_governor=powersave
