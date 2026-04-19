@@ -8,12 +8,12 @@ const FILE_EPP_NAME: &str = "energy_performance_preference";
 #[derive(Clone)]
 pub struct CustomSlots {
     pub folder_path: String,
-    subfolder_check: String,
+    pub subfolder_check: String,
     pub file_name: String,
     pub thresholds: Vec<(f32, String)>,
     pub slot_id: u8,
 }
-
+//#[derive(Debug)]
 pub struct Config {
     pub ac_governor: Vec<(f32, String)>,
     pub ac_turbo: Vec<(f32, u32)>,
