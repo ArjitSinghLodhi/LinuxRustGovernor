@@ -1,4 +1,6 @@
-sudo cp target/release/rustgovernor /usr/local/bin/
+pkill -9 -f rustgovernor
+sudo rm /usr/local/bin/rustgovernor
+sudo cp rustgovernor /usr/local/bin/
 
 # 3. Create Systemd Service
 cat <<EOF | sudo tee /etc/systemd/system/rustgovernor.service
@@ -22,3 +24,4 @@ EOF
 sudo systemctl daemon-reload
 sudo systemctl enable --now rustgovernor
 echo "RustGovernor installed and started!"
+
