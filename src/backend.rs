@@ -21,6 +21,7 @@ pub struct Config {
     pub dc_cap_governor: String,
     pub dc_governor: Vec<(f32, String)>,
     pub dc_epp: Vec<(f32, String)>,
+    pub dc_turbo: Vec<(f32, u32)>,
     // custom logics.. first path.. then sub folder check or not (1 or 0), then the file to check its name exact.. then value to apply
     pub ac_custom: Vec<CustomSlots>,
     pub dc_custom: Vec<CustomSlots>,
@@ -80,7 +81,9 @@ dc_100_governor=performance
 dc_1_epp=power
 dc_15_epp=power
 dc_40_epp=power
-dc_60_epp=balanced_power"
+dc_60_epp=balanced_power
+dc_0_turbo=1
+dc_100_turbo=1"
     }
 
     pub fn load() -> Result<Self> {
@@ -104,6 +107,7 @@ dc_60_epp=balanced_power"
             dc_epp: vec![],
             ac_custom: vec![],
             dc_custom: vec![],
+            dc_turbo: vec![],
         };
         let reader = BufReader::new(File::open(config_path)?);
         for (idx, line) in reader.lines().enumerate() {
@@ -135,6 +139,9 @@ dc_60_epp=balanced_power"
             } else if key.starts_with("dc_") && key.ends_with("_epp") {
                 let load: f32 = key[3..key.len() - 4].parse().unwrap_or(0.0);
                 config.dc_epp.push((load, val.to_string()));
+            } else if key.starts_with("dc_") && key.ends_with("_turbo") {
+                let load: f32 = key[3..key.len() - 6].parse().unwrap_or(0.0);
+                config.dc_turbo.push((load, val.parse()?));
             }
             config
                 .ac_governor
