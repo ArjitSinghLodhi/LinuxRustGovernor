@@ -1,5 +1,7 @@
-use std::{fs, thread, time::Duration};
+use std::{fs, path::Path, thread, time::Duration};
+
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
+
 use crate::backend::{Config, FilePaths, GovernorState, PowerManager};
 
 pub fn monitor_handling() {
@@ -47,6 +49,7 @@ pub fn monitor_handling() {
             println!("\n[ Custom Slots ]");
             for slot in custom_vec {
                 if !slot.folder_path.is_empty() {
+                    let path = Path::new(&slot.folder_path);
                     // Find what value is currently "active" for this slot
                     let active_val = slot
                         .thresholds
@@ -55,10 +58,30 @@ pub fn monitor_handling() {
                         .last()
                         .map(|(_, v)| v)
                         .map_or("None", |v| v);
-
+                    let mut full_path= None;
+                    if slot.subfolder_check == "1"{
+                        let entries = fs::read_dir(slot.folder_path.clone()).unwrap();
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            if path.is_dir() {
+                                let fullpath = path.join(slot.file_name.clone());
+                                if fullpath.exists() {
+                                   full_path = Some(fullpath);
+                                }
+                            }
+                        }
+                    } else {
+                        full_path = Some(path.join(slot.file_name.clone()));
+                    }
+                    let full_path = full_path.unwrap();
+                    let content = fs::read_to_string(full_path);
                     println!(
-                        "Slot {:02}: [{}] -> {}",
-                        slot.slot_id, slot.file_name, active_val
+                        "Slot {:02}: [{}] -> {} {}",
+                        slot.slot_id, slot.file_name, active_val,
+                        match content {
+                            Ok(_) => if content.unwrap().trim() == active_val.trim() {"(Successful)".to_string()} else {"(Failed (file value and config value are not equal)".to_string()},
+                            Err(e) => format!("(Failed {})", e),
+                        }
                     );
                 }
             }
