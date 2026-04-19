@@ -117,6 +117,12 @@ fn main() {
                         break;
                     }
                 }
+                for (threshold, val) in &config.dc_turbo {
+                    if state.avg_load <= *threshold {
+                        t_turbo = *val;
+                        break;
+                    }
+                }
                 for (threshold, val) in &config.dc_epp {
                     if state.avg_load <= *threshold {
                         t_epp = val.clone();
