@@ -16,12 +16,12 @@ pub struct CustomSlots {
 //#[derive(Debug)]
 pub struct Config {
     pub ac_governor: Vec<(f32, String)>,
-    pub ac_turbo: Vec<(f32, u32)>,
+    pub ac_turbo: Vec<(f32, i32)>,
     pub ac_epp: Vec<(f32, String)>,
     pub dc_cap_governor: String,
     pub dc_governor: Vec<(f32, String)>,
     pub dc_epp: Vec<(f32, String)>,
-    pub dc_turbo: Vec<(f32, u32)>,
+    pub dc_turbo: Vec<(f32, i32)>,
     // custom logics.. first path.. then sub folder check or not (1 or 0), then the file to check its name exact.. then value to apply
     pub ac_custom: Vec<CustomSlots>,
     pub dc_custom: Vec<CustomSlots>,
@@ -130,7 +130,7 @@ dc_100_turbo=1"
             } else if key.starts_with("ac_") && key.ends_with("_epp") {
                 let load = key[3..key.len() - 4].parse().unwrap_or(0.0);
                 config.ac_epp.push((load, val.to_string()));
-            } else if key == "dc_max_cap" {
+            } else if key == "dc_cap_governor" {
                 config.dc_cap_governor = val.to_string();
             } else if key.starts_with("dc_") && key.ends_with("_governor") {
                 let load = key[3..key.len() - 9].parse().unwrap_or(0.0);
@@ -142,17 +142,7 @@ dc_100_turbo=1"
                 let load: f32 = key[3..key.len() - 6].parse().unwrap_or(0.0);
                 config.dc_turbo.push((load, val.parse()?));
             }
-            config
-                .ac_governor
-                .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-            config
-                .ac_turbo
-                .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-            config.ac_epp.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-            config
-                .dc_governor
-                .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-            config.dc_epp.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
             if key.contains("_custom") {
                 if let Some(idx) = key.find("custom") {
                     let after_custom = &key[idx + 6..]; // Skip "custom"
@@ -182,39 +172,30 @@ dc_100_turbo=1"
                             thresholds: Vec::new(),
                         });
                     }
-                    if key.contains("path") {
-                        target_vec[id as usize].folder_path = val.to_string();
-                    }
-                    if key.contains("file") {
-                        target_vec[id as usize].file_name = val.to_string();
-                    }
-                    if key.contains("sub_check") {
-                        target_vec[id as usize].subfolder_check = val.to_string();
-                    }
-                    if key.contains("val") {
+                    let slot = &mut target_vec[id];
+                    if key.contains("path") { slot.folder_path = val.to_string(); }
+                    else if key.contains("file") { slot.file_name = val.to_string(); }
+                    else if key.contains("sub_check") { slot.subfolder_check = val.to_string(); }
+                    else if key.contains("val") {
                         let parts: Vec<&str> = key.split('_').collect();
                         if parts.len() >= 2 {
                             let load: f32 = parts[1].parse().unwrap_or(0.0);
-                            target_vec[id as usize]
-                                .thresholds
+                            slot.thresholds
                                 .push((load, val.to_string()));
                         }
                     }
-                    if key.starts_with("ac_") {
-                        config.ac_custom = target_vec.to_vec()
-                    } else {
-                        config.dc_custom = target_vec.to_vec()
-                    };
                 }
             }
-            for slot in &mut config.ac_custom {
-                slot.thresholds
-                    .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-            }
-            for slot in &mut config.dc_custom {
-                slot.thresholds
-                    .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-            }
+        }
+        let sort_tuple = |a: &(f32, String), b: &(f32, String)| a.0.partial_cmp(&b.0).unwrap();
+        config.ac_governor.sort_by(sort_tuple);
+        config.ac_turbo.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        config.ac_epp.sort_by(sort_tuple);
+        config.dc_governor.sort_by(sort_tuple);
+        config.dc_epp.sort_by(sort_tuple);
+        config.dc_turbo.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        for slot in config.ac_custom.iter_mut().chain(config.dc_custom.iter_mut()) {
+            slot.thresholds.sort_by(sort_tuple);
         }
         Ok(config)
     }
