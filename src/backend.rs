@@ -50,7 +50,6 @@ impl Config {
 
 # --- The following are the minimum settings pre-configured ---
 # You could delete these if you don't want them because it isn't supported for you or you want everything custom.
-ac_15_max=80
 ac_20_governor=powersave
 ac_30_governor=powersave
 ac_40_governor=powersave
