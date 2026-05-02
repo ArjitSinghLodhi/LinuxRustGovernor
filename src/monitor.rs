@@ -48,41 +48,95 @@ pub fn monitor_handling() {
         if !custom_vec.is_empty() {
             println!("\n[ Custom Slots ]");
             for slot in custom_vec {
-                if !slot.folder_path.is_empty() {
-                    let path = Path::new(&slot.folder_path);
-                    // Find what value is currently "active" for this slot
-                    let active_val = slot
-                        .thresholds
-                        .iter()
-                        .filter(|(t, _)| state.avg_load >= *t)
-                        .last()
-                        .map(|(_, v)| v)
-                        .map_or("None", |v| v);
-                    let mut full_path= None;
-                    if slot.subfolder_check == "1"{
-                        let entries = fs::read_dir(slot.folder_path.clone()).unwrap();
+                if slot.folder_path.is_empty() {
+                    continue;
+                }
+
+                // Get the target value based on current load
+                let active_val = slot
+                    .thresholds
+                    .iter()
+                    .filter(|(t, _)| state.avg_load >= *t)
+                    .last()
+                    .map(|(_, v)| v)
+                    .map_or("None", |v| v);
+
+                let mut paths_to_check = Vec::new();
+
+                // Collect all applicable paths (handles subfolders or direct)
+                if slot.subfolder_check == "1" {
+                    if let Ok(entries) = fs::read_dir(&slot.folder_path) {
                         for entry in entries.flatten() {
-                            let path = entry.path();
-                            if path.is_dir() {
-                                let fullpath = path.join(slot.file_name.clone());
-                                if fullpath.exists() {
-                                   full_path = Some(fullpath);
+                            let p = entry.path();
+                            if p.is_dir() {
+                                let full = p.join(&slot.file_name);
+                                if full.exists() {
+                                    paths_to_check.push(full);
                                 }
                             }
                         }
-                    } else {
-                        full_path = Some(path.join(slot.file_name.clone()));
                     }
-                    let full_path = full_path.unwrap();
-                    let content = fs::read_to_string(full_path);
-                    println!(
-                        "Slot {:02}: [{}] -> {} {}",
-                        slot.slot_id, slot.file_name, active_val,
-                        match content {
-                            Ok(_) => if content.unwrap().trim() == active_val.trim() {"(Successful)".to_string()} else {"(Failed (file value and config value are not equal)".to_string()},
-                            Err(e) => format!("(Failed {})", e),
+                } else {
+                    let full = Path::new(&slot.folder_path).join(&slot.file_name);
+                    if full.exists() {
+                        paths_to_check.push(full);
+                    }
+                }
+
+                // Verify every path and collect specific errors
+                let mut success_count = 0;
+                let mut slot_errors = Vec::new();
+
+                for path in &paths_to_check {
+                    match fs::read_to_string(path) {
+                        Ok(content) => {
+                            if content.trim() == active_val.trim() {
+                                success_count += 1;
+                            } else {
+                                slot_errors.push(format!(
+                                    "Mismatch in {:?}: Found '{}' expected '{}'",
+                                    path.file_name().unwrap_or_default(),
+                                    content.trim(),
+                                    active_val.trim()
+                                ));
+                            }
                         }
-                    );
+                        Err(e) => {
+                            // Specifically check for permission issues
+                            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                                slot_errors.push(format!(
+                                    "ReadErr in {:?}: Permission Denied. Please run with sudo.",
+                                    path.file_name().unwrap_or_default()
+                                ));
+                            } else {
+                                slot_errors.push(format!(
+                                    "ReadErr in {:?}: {}",
+                                    path.file_name().unwrap_or_default(),
+                                    e
+                                ));
+                            }
+                        }
+                    }
+                }
+
+                // Print Summary Line
+                let total = paths_to_check.len();
+                let status_text = if total == 0 {
+                    "(File Not Found)".to_string()
+                } else if success_count == total {
+                    format!("(Successful {}/{})", success_count, total)
+                } else {
+                    format!("(Failed {}/{})", total - success_count, total)
+                };
+
+                println!(
+                    "Slot {:02}: [{}] -> {} {}",
+                    slot.slot_id, slot.file_name, active_val, status_text
+                );
+
+                // 5. Print Detailed Errors (ReadErr / Mismatch) only if they exist
+                for err in slot_errors {
+                    println!("      ┗━> [!] {}", err);
                 }
             }
         }
