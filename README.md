@@ -57,7 +57,7 @@ the path is `/etc/RustGovernor/config.txt` by default generated after you start 
 
 Its main purpose is to allow you to connect anything with your average CPU load percentage
 
-it also supposed sub_check so you can write to all the subfolders in the directory which have the specified file and write the same value to all of them with one slot instead of writing each slot manually for each folder if they're in the same directroy with same files
+it also has sub_check so you can write to all the subfolders in the directory which have the specified file and write the same value to all of them with one slot instead of writing each slot manually for each folder if they're in the same directroy with same files
 
 ## ⚖️ License
 MIT - This is just a program I made myself to fix my temps, do whatever you want with it.
