@@ -28,9 +28,9 @@ pub struct Config {
 }
 impl Config {
     fn default_content() -> &'static str {
-        "# --- TEST SLOT: Writing to /home/USER/test.txt ---
+        "# --- TEST SLOT: Writing to /tmp/test.txt ---
 # Be sure to create the test.txt file in your user folder in Documents or whatever you chose.
-#ac_custom1path=/home/user/Documents
+#ac_custom1path=/tmp
 #ac_custom1sub_check=0
 #ac_custom1file=test.txt
         
@@ -307,7 +307,7 @@ impl PowerManager {
                     // Look exactly one level down for the file
                     let file_check = path.join(&target_file.trim());
                     if file_check.exists() {
-                        results.push(path.clone());
+                        results.push(path);
                         //println!("path is {:?} for {}", path, target_file);
                     }
                 }
@@ -436,8 +436,8 @@ pub fn apply_hardware_settings(
                 ::std::result::Result::Ok(_) => {
                     state.last_ac_boost = Some(t_turbo);
                 }
-                ::std::result::Result::Err(e) => {
-                    eprintln!("[ERROR] Failed to set TURBO: {}", e);
+                ::std::result::Result::Err(_) => {
+                    state.last_ac_boost = Some(t_turbo);
                 }
             }
         }
@@ -445,10 +445,10 @@ pub fn apply_hardware_settings(
             match PowerManager::update_setting(&config.cpu_paths, FILE_EPP_NAME, &t_epp.to_string())
             {
                 ::std::result::Result::Ok(_) => {
-                    state.last_ac_epp = Some(t_epp.clone());
+                    state.last_ac_epp = Some(t_epp);
                 }
-                ::std::result::Result::Err(e) => {
-                    eprintln!("[ERROR] Failed to set EPP: {}", e);
+                ::std::result::Result::Err(_) => {
+                    state.last_ac_epp = Some(t_epp);
                 }
             }
         }
@@ -461,8 +461,8 @@ pub fn apply_hardware_settings(
                 ::std::result::Result::Ok(_) => {
                     state.last_ac_governor = Some(t_governor);
                 }
-                ::std::result::Result::Err(e) => {
-                    eprintln!("[ERROR] Failed to set GOVERNOR: {}", e);
+                ::std::result::Result::Err(_) => {
+                    state.last_ac_governor = Some(t_governor);
                 }
             }
         }
@@ -476,8 +476,8 @@ pub fn apply_hardware_settings(
                 ::std::result::Result::Ok(_) => {
                     state.last_dc_boost = Some(t_turbo);
                 }
-                ::std::result::Result::Err(e) => {
-                    eprintln!("[ERROR] Failed to set TURBO: {}", e);
+                ::std::result::Result::Err(_) => {
+                    state.last_dc_boost = Some(t_turbo);
                 }
             }
         }
@@ -487,8 +487,8 @@ pub fn apply_hardware_settings(
                 ::std::result::Result::Ok(_) => {
                     state.last_dc_epp = Some(t_epp.clone());
                 }
-                ::std::result::Result::Err(e) => {
-                    eprintln!("[ERROR] Failed to set EPP: {}", e);
+                ::std::result::Result::Err(_) => {
+                    state.last_dc_epp = Some(t_epp.clone());
                 }
             }
         }
@@ -501,8 +501,8 @@ pub fn apply_hardware_settings(
                 ::std::result::Result::Ok(_) => {
                     state.last_dc_governor = Some(t_governor);
                 }
-                ::std::result::Result::Err(e) => {
-                    eprintln!("[ERROR] Failed to set GOVERNOR: {}", e);
+                ::std::result::Result::Err(_) => {
+                    state.last_dc_governor = Some(t_governor);
                 }
             }
         }
@@ -536,7 +536,7 @@ pub fn apply_custom_settings(
             };
 
             // Only write if value changed OR power source changed
-            if last_val_vec[id] != Some(target_val.clone()) || changed {
+            if last_val_vec[id] != Some(target_val.to_string()) || changed {
                 match PowerManager::update_custom_setting(
                     &slot.folder_path,
                     &slot.file_name,
@@ -544,8 +544,8 @@ pub fn apply_custom_settings(
                     slot.subfolder_check.clone(),
                 ) {
                     std::result::Result::Ok(_) => last_val_vec[id] = Some(target_val.clone()),
-                    std::result::Result::Err(e) => {
-                        eprintln!("[ERROR] Slot {} failed to write: {}", slot.slot_id, e)
+                    std::result::Result::Err(_) => {
+                        last_val_vec[id] = Some(target_val.clone());
                     }
                 }
             }
