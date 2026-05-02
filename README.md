@@ -13,7 +13,7 @@ I was first trying to port my Windows 11 version of this, then it turned into cu
 - **Monitor Mode**: A live dashboard that reads directly from the hardware to show you the *actual* state including everything written in config.txt and custom slots `rustgovernor --monitor`.
 - **EPP, Governor & Turbo Control**: Dynamic switching of Energy Performance Preferences, scaling_governor and Intel Turbo Boost by default.
 - **AC/DC Detection**: Automatically flips your entire hardware profile when you plug or unplug your charger.
-- **Safety First**: Single-instance protection for `--run` and root-user validation.
+- **Safety First**: Single instance protection for `--run` and root-user validation.
 - **Config** This is the main part, it by default only managed EPP, Governor and turbo boost (Intel by default) but you can also write in the custom slots.
 
 ## Installation
@@ -57,7 +57,7 @@ the path is `/etc/RustGovernor/config.txt` by default generated after you start 
 
 Its main purpose is to allow you to connect anything with your average CPU load percentage
 
-it also supposed subfolder_check so you can write to all the subfolders in the directory which have the specified file and write the same value to all of them instead of writing each slot manually for each folder if they're in the same directroy with same files
+it also supposed sub_check so you can write to all the subfolders in the directory which have the specified file and write the same value to all of them with one slot instead of writing each slot manually for each folder if they're in the same directroy with same files
 
 ## ⚖️ License
 MIT - This is just a program I made myself to fix my temps, do whatever you want with it.
