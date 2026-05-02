@@ -30,7 +30,7 @@ pub fn monitor_handling() {
         let turbo_val = fs::read_to_string(&paths.boost_paths[0].join("no_turbo"))
             .unwrap_or_else(|_| "1".into());
         let turbo_status = turbo_val.trim();
-        println!("=== RustGovernor Monitor [v1.0.0] ===");
+        println!("=== RustGovernor Monitor [v1.1.0] ===");
         println!(
             "Source: [{}] | Avg Load: {:.2}%",
             if is_ac { "AC" } else { "DC" },
