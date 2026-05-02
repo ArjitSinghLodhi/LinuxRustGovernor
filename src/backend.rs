@@ -28,7 +28,7 @@ pub struct Config {
 }
 impl Config {
     fn default_content() -> &'static str {
-        "# --- TEST SLOT: Writing to /tmp/test.txt ---
+        "# --- TEST SLOT: Writing to /home/USER/test.txt ---
 # Be sure to create the test.txt file in your user folder in Documents or whatever you chose.
 #ac_custom1path=/home/user/Documents
 #ac_custom1sub_check=0
