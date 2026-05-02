@@ -6,8 +6,12 @@ use crate::{
     monitor::monitor_handling,
 };
 use clap::Parser;
-use single_instance::SingleInstance;
-use std::{process, thread, time::Duration};
+use std::{
+    os::unix::net::UnixListener,
+    process::{self, exit},
+    thread,
+    time::Duration,
+};
 use sysinfo::{CpuRefreshKind, RefreshKind, System};
 mod backend;
 mod monitor;
@@ -52,13 +56,13 @@ fn main() {
     }
 
     if args.run {
-        let instance = SingleInstance::new("rustgovernor").unwrap();
-        if args.run {
-            if !instance.is_single() {
-                eprintln!("Error: Another instance of RustGovernor is already running.");
-                process::exit(1);
+        let _lock = match UnixListener::bind("\0rustgovernor") {
+            Ok(lock) => lock,
+            Err(_) => {
+                eprintln!("[!] RustGovernor is already running!");
+                exit(1);
             }
-        }
+        };
         let uid = std::process::Command::new("id")
             .arg("-u")
             .output()
@@ -94,19 +98,19 @@ fn main() {
             if is_ac {
                 for (threshold, val) in &config.ac_governor {
                     if state.avg_load <= *threshold {
-                        t_governor = &*val;
+                        t_governor = val;
                         break;
                     }
                 }
                 for (threshold, val) in &config.ac_turbo {
                     if state.avg_load <= *threshold {
-                        t_turbo = *val;
+                        t_turbo = *val as i32;
                         break;
                     }
                 }
                 for (threshold, val) in &config.ac_epp {
                     if state.avg_load <= *threshold {
-                        t_epp = val.clone();
+                        t_epp = val.to_string();
                         break;
                     }
                 }
@@ -119,25 +123,29 @@ fn main() {
                 }
                 for (threshold, val) in &config.dc_turbo {
                     if state.avg_load <= *threshold {
-                        t_turbo = *val;
+                        t_turbo = *val as i32;
                         break;
                     }
                 }
                 for (threshold, val) in &config.dc_epp {
                     if state.avg_load <= *threshold {
-                        t_epp = val.clone();
+                        t_epp = val.to_string();
                         break;
                     }
                 }
             }
-            let custom = config.ac_custom.clone();
+            let custom = if is_ac {
+                &config.ac_custom
+            } else {
+                &config.dc_custom
+            };
             //println!("governor: {} epp: {} turbo: {} cooling: {}", t_governor, t_epp, t_turbo, t_cooling);
-            let _ = apply_hardware_settings(
+            apply_hardware_settings(
                 &mut state,
                 &paths,
                 t_governor.to_string(),
-                t_turbo,
-                t_epp.clone(),
+                t_turbo as u32,
+                t_epp,
                 is_ac,
                 changed,
             );
