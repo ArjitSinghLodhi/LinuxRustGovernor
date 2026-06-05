@@ -22,7 +22,6 @@ pub struct Config {
     pub dc_governor: Vec<(f32, String)>,
     pub dc_epp: Vec<(f32, String)>,
     pub dc_turbo: Vec<(f32, i32)>,
-    // custom logics.. first path.. then sub folder check or not (1 or 0), then the file to check its name exact.. then value to apply
     pub ac_custom: Vec<CustomSlots>,
     pub dc_custom: Vec<CustomSlots>,
 }
@@ -95,7 +94,13 @@ dc_100_turbo=1"
             let mut f = File::create(&config_path)?;
             f.write_all(Self::default_content().as_bytes())?;
         }
-
+        let content = fs::read_to_string(&config_path)?;
+        if content.trim().is_empty() {
+            return Err(anyhow!(
+                "Configuration Error: '{:?}' is completely blank. Please populate it or delete the file to trigger default initialization.",
+                config_path
+            ));
+        }
         let mut config = Self {
             ac_governor: vec![],
             ac_turbo: vec![],
@@ -121,66 +126,85 @@ dc_100_turbo=1"
             let val = parts[1].trim();
 
             if key.starts_with("ac_") && key.ends_with("_governor") {
-                let load = key[3..key.len() - 9].parse().unwrap_or(0.0);
+                let load: f32 = key[3..key.len() - 9].parse().map_err(|_| {
+                    anyhow!("Crash: Invalid load percentage key at line {}", idx + 1)
+                })?;
                 config.ac_governor.push((load, val.parse()?));
             } else if key.starts_with("ac_") && key.ends_with("_turbo") {
-                let load: f32 = key[3..key.len() - 6].parse().unwrap_or(0.0);
+                let load: f32 = key[3..key.len() - 6].parse().map_err(|_| {
+                    anyhow!("Crash: Invalid load percentage key at line {}", idx + 1)
+                })?;
                 config.ac_turbo.push((load, val.parse()?));
             } else if key.starts_with("ac_") && key.ends_with("_epp") {
-                let load = key[3..key.len() - 4].parse().unwrap_or(0.0);
+                let load: f32 = key[3..key.len() - 4].parse().map_err(|_| {
+                    anyhow!("Crash: Invalid load percentage key at line {}", idx + 1)
+                })?;
                 config.ac_epp.push((load, val.to_string()));
             } else if key == "dc_cap_governor" {
                 config.dc_cap_governor = val.to_string();
             } else if key.starts_with("dc_") && key.ends_with("_governor") {
-                let load = key[3..key.len() - 9].parse().unwrap_or(0.0);
+                let load: f32 = key[3..key.len() - 9].parse().map_err(|_| {
+                    anyhow!("Crash: Invalid load percentage key at line {}", idx + 1)
+                })?;
                 config.dc_governor.push((load, val.to_string()));
             } else if key.starts_with("dc_") && key.ends_with("_epp") {
-                let load: f32 = key[3..key.len() - 4].parse().unwrap_or(0.0);
+                let load: f32 = key[3..key.len() - 4].parse().map_err(|_| {
+                    anyhow!("Crash: Invalid load percentage key at line {}", idx + 1)
+                })?;
                 config.dc_epp.push((load, val.to_string()));
             } else if key.starts_with("dc_") && key.ends_with("_turbo") {
-                let load: f32 = key[3..key.len() - 6].parse().unwrap_or(0.0);
+                let load: f32 = key[3..key.len() - 6].parse().map_err(|_| {
+                    anyhow!("Crash: Invalid load percentage key at line {}", idx + 1)
+                })?;
                 config.dc_turbo.push((load, val.parse()?));
             }
 
             if key.contains("_custom") {
-                if let Some(idx) = key.find("custom") {
-                    let after_custom = &key[idx + 6..]; // Skip "custom"
-
-                    // 2. Grab only the numbers immediately following "custom"
+                if let Some(c_idx) = key.find("custom") {
+                    let after_custom = &key[c_idx + 6..];
                     let id_str: String = after_custom
                         .chars()
                         .take_while(|c| c.is_numeric())
                         .collect();
 
-                    let id: u32 = id_str.parse().unwrap_or(1);
-                    let idx_usize = id as usize;
-                    let id = idx_usize;
+                    let id: usize = id_str.parse().map_err(|_| {
+                        anyhow!("Crash: Invalid custom slot index at line {}", idx + 1)
+                    })?;
 
                     let target_vec = if key.starts_with("ac_") {
                         &mut config.ac_custom
                     } else {
                         &mut config.dc_custom
                     };
-                    // IMPORTANT: Ensure the vector is big enough
-                    while target_vec.len() <= id as usize {
+
+                    while target_vec.len() <= id {
+                        let current_id = target_vec.len() as u8;
                         target_vec.push(CustomSlots {
-                            slot_id: (target_vec.len() as u8), // Store 1-based ID for logs
+                            slot_id: current_id,
                             folder_path: String::new(),
                             subfolder_check: "0".to_string(),
                             file_name: String::new(),
                             thresholds: Vec::new(),
                         });
                     }
+
                     let slot = &mut target_vec[id];
-                    if key.contains("path") { slot.folder_path = val.to_string(); }
-                    else if key.contains("file") { slot.file_name = val.to_string(); }
-                    else if key.contains("sub_check") { slot.subfolder_check = val.to_string(); }
-                    else if key.contains("val") {
+                    if key.contains("path") {
+                        slot.folder_path = val.to_string();
+                    } else if key.contains("file") {
+                        slot.file_name = val.to_string();
+                    } else if key.contains("sub_check") {
+                        slot.subfolder_check = val.to_string();
+                    } else if key.contains("val") {
                         let parts: Vec<&str> = key.split('_').collect();
                         if parts.len() >= 2 {
-                            let load: f32 = parts[1].parse().unwrap_or(0.0);
-                            slot.thresholds
-                                .push((load, val.to_string()));
+                            let load: f32 = parts[1].parse().map_err(|_| {
+                                anyhow!(
+                                    "Crash: Invalid custom value threshold format at line {}",
+                                    idx + 1
+                                )
+                            })?;
+                            slot.thresholds.push((load, val.to_string()));
                         }
                     }
                 }
@@ -188,27 +212,27 @@ dc_100_turbo=1"
         }
         let sort_tuple = |a: &(f32, String), b: &(f32, String)| a.0.partial_cmp(&b.0).unwrap();
         config.ac_governor.sort_by(sort_tuple);
-        config.ac_turbo.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
         config.ac_epp.sort_by(sort_tuple);
         config.dc_governor.sort_by(sort_tuple);
         config.dc_epp.sort_by(sort_tuple);
-        config.dc_turbo.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
-        for slot in config.ac_custom.iter_mut().chain(config.dc_custom.iter_mut()) {
+
+        config
+            .ac_turbo
+            .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        config
+            .dc_turbo
+            .sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        for slot in config
+            .ac_custom
+            .iter_mut()
+            .chain(config.dc_custom.iter_mut())
+        {
             slot.thresholds.sort_by(sort_tuple);
         }
         Ok(config)
     }
 }
-/*
-    else if key.starts_with("dc_") && key.ends_with("_custom1path") {
-               config.dc_custom1.folder_path = Some(val.to_string());
-           } else if key.starts_with("dc_") && key.ends_with("_custom1") {
-               let load: f32 = key[3..key.len() - 7].parse().unwrap_or(0.0);
-               config.dc_custom1.load = Some(load); config.dc_custom1.val = Some(val.to_string());
-           } else if key.starts_with("dc_") && key.ends_with("_custom1sub_check") {
-               config.dc_custom1.subfolder_check = Some(val.to_string());
-           }
-*/
+
 pub struct FilePaths {
     pub cpu_paths: Vec<PathBuf>,
     pub battery_paths: Vec<PathBuf>,
@@ -361,10 +385,10 @@ pub struct GovernorState {
     pub history: Vec<f32>,
     pub max_history: usize,
     pub last_ac_status: Option<bool>,
-    pub last_ac_boost: Option<u32>,
+    pub last_ac_boost: Option<i32>,
     pub last_ac_governor: Option<String>,
     pub last_ac_epp: Option<String>,
-    pub last_dc_boost: Option<u32>,
+    pub last_dc_boost: Option<i32>,
     pub last_dc_governor: Option<String>,
     pub last_dc_epp: Option<String>,
     pub last_ac_custom: Vec<Option<String>>,
@@ -400,89 +424,107 @@ impl GovernorState {
 pub fn apply_hardware_settings(
     state: &mut GovernorState,
     config: &FilePaths,
-    t_governor: String,
-    t_turbo: u32,
-    t_epp: String,
+    t_governor_opt: Option<String>,
+    t_turbo_opt: Option<i32>,
+    t_epp_opt: Option<String>,
     is_ac: bool,
     changed: bool,
 ) {
     if is_ac {
-        if state.last_ac_boost != Some(t_turbo) || changed {
-            match PowerManager::update_setting(
-                &config.boost_paths,
-                "no_turbo",
-                &t_turbo.to_string(),
-            ) {
-                ::std::result::Result::Ok(_) => {
-                    state.last_ac_boost = Some(t_turbo);
-                }
-                ::std::result::Result::Err(_) => {
-                    state.last_ac_boost = Some(t_turbo);
-                }
-            }
-        }
-        if state.last_ac_epp != Some(t_epp.clone()) || changed {
-            match PowerManager::update_setting(&config.cpu_paths, FILE_EPP_NAME, &t_epp.to_string())
-            {
-                ::std::result::Result::Ok(_) => {
-                    state.last_ac_epp = Some(t_epp);
-                }
-                ::std::result::Result::Err(_) => {
-                    state.last_ac_epp = Some(t_epp);
+        if let Some(t_turbo) = t_turbo_opt {
+            if state.last_ac_boost != Some(t_turbo) || changed {
+                match PowerManager::update_setting(
+                    &config.boost_paths,
+                    "no_turbo",
+                    &t_turbo.to_string(),
+                ) {
+                    ::std::result::Result::Ok(_) => {
+                        state.last_ac_boost = Some(t_turbo);
+                    }
+                    ::std::result::Result::Err(_) => {
+                        state.last_ac_boost = Some(t_turbo);
+                    }
                 }
             }
         }
-        if state.last_ac_governor != Some(t_governor.clone()) || changed {
-            match PowerManager::update_setting(
-                &config.governor,
-                "scaling_governor",
-                &t_governor.to_string(),
-            ) {
-                ::std::result::Result::Ok(_) => {
-                    state.last_ac_governor = Some(t_governor);
+        if let Some(t_epp) = t_epp_opt {
+            if state.last_ac_epp != Some(t_epp.clone()) || changed {
+                match PowerManager::update_setting(
+                    &config.cpu_paths,
+                    FILE_EPP_NAME,
+                    &t_epp.to_string(),
+                ) {
+                    ::std::result::Result::Ok(_) => {
+                        state.last_ac_epp = Some(t_epp);
+                    }
+                    ::std::result::Result::Err(_) => {
+                        state.last_ac_epp = Some(t_epp);
+                    }
                 }
-                ::std::result::Result::Err(_) => {
-                    state.last_ac_governor = Some(t_governor);
+            }
+        }
+        if let Some(t_governor) = t_governor_opt {
+            if state.last_ac_governor != Some(t_governor.clone()) || changed {
+                match PowerManager::update_setting(
+                    &config.governor,
+                    "scaling_governor",
+                    &t_governor.to_string(),
+                ) {
+                    ::std::result::Result::Ok(_) => {
+                        state.last_ac_governor = Some(t_governor);
+                    }
+                    ::std::result::Result::Err(_) => {
+                        state.last_ac_governor = Some(t_governor);
+                    }
                 }
             }
         }
     } else {
-        if state.last_dc_boost != Some(t_turbo) || changed {
-            match PowerManager::update_setting(
-                &config.boost_paths,
-                "no_turbo",
-                &t_turbo.to_string(),
-            ) {
-                ::std::result::Result::Ok(_) => {
-                    state.last_dc_boost = Some(t_turbo);
-                }
-                ::std::result::Result::Err(_) => {
-                    state.last_dc_boost = Some(t_turbo);
-                }
-            }
-        }
-        if state.last_dc_epp != Some(t_epp.clone()) || changed {
-            match PowerManager::update_setting(&config.cpu_paths, FILE_EPP_NAME, &t_epp.to_string())
-            {
-                ::std::result::Result::Ok(_) => {
-                    state.last_dc_epp = Some(t_epp.clone());
-                }
-                ::std::result::Result::Err(_) => {
-                    state.last_dc_epp = Some(t_epp.clone());
+        if let Some(t_turbo) = t_turbo_opt {
+            if state.last_dc_boost != Some(t_turbo) || changed {
+                match PowerManager::update_setting(
+                    &config.boost_paths,
+                    "no_turbo",
+                    &t_turbo.to_string(),
+                ) {
+                    ::std::result::Result::Ok(_) => {
+                        state.last_dc_boost = Some(t_turbo);
+                    }
+                    ::std::result::Result::Err(_) => {
+                        state.last_dc_boost = Some(t_turbo);
+                    }
                 }
             }
         }
-        if state.last_dc_governor != Some(t_governor.clone()) || changed {
-            match PowerManager::update_setting(
-                &config.governor,
-                "scaling_governor",
-                &t_governor.to_string(),
-            ) {
-                ::std::result::Result::Ok(_) => {
-                    state.last_dc_governor = Some(t_governor);
+        if let Some(t_epp) = t_epp_opt {
+            if state.last_dc_epp != Some(t_epp.clone()) || changed {
+                match PowerManager::update_setting(
+                    &config.cpu_paths,
+                    FILE_EPP_NAME,
+                    &t_epp.to_string(),
+                ) {
+                    ::std::result::Result::Ok(_) => {
+                        state.last_dc_epp = Some(t_epp.clone());
+                    }
+                    ::std::result::Result::Err(_) => {
+                        state.last_dc_epp = Some(t_epp.clone());
+                    }
                 }
-                ::std::result::Result::Err(_) => {
-                    state.last_dc_governor = Some(t_governor);
+            }
+        }
+        if let Some(t_governor) = t_governor_opt {
+            if state.last_dc_governor != Some(t_governor.clone()) || changed {
+                match PowerManager::update_setting(
+                    &config.governor,
+                    "scaling_governor",
+                    &t_governor.to_string(),
+                ) {
+                    ::std::result::Result::Ok(_) => {
+                        state.last_dc_governor = Some(t_governor);
+                    }
+                    ::std::result::Result::Err(_) => {
+                        state.last_dc_governor = Some(t_governor);
+                    }
                 }
             }
         }
