@@ -149,7 +149,6 @@ pub fn monitor_handling(config: Config) {
     }
 }
 
-// Put this helper function directly above monitor_handling()
 fn format_path_display(path: &std::path::Path) -> String {
     let file_name = path
         .file_name()
