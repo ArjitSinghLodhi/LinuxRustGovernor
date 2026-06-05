@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -e
 
 GREEN='\033[0;32m'
@@ -8,31 +9,31 @@ NC='\033[0m'
 TARGET_PATH="/usr/local/bin/rustgovernor"
 SERVICE_PATH="/etc/systemd/system/rustgovernor.service"
 
-echo -e "${BLUE}=== Starting RustGovernor Installation ===${NC}"
+printf "${BLUE}=== Starting RustGovernor Installation ===${NC}\n"
 
 if [ -f "$TARGET_PATH" ]; then
-    echo -e "${YELLOW}[!] Warning: RustGovernor binary already exists at $TARGET_PATH${NC}"
+    printf "${YELLOW}[!] Warning: RustGovernor binary already exists at %s${NC}\n" "$TARGET_PATH"
     read -p "Do you want to overwrite it? (y/N): " choice
     case "$choice" in 
         [yY][eE][sS]|[yY]) 
-            echo -e "${BLUE}[*] Proceeding with overwrite...${NC}"
+            printf "${BLUE}[*] Proceeding with overwrite...${NC}\n"
             ;;
         *)
-            echo -e "${YELLOW}[*] Installation aborted by user.${NC}"
+            printf "${YELLOW}[*] Installation aborted by user.${NC}\n"
             exit 0
             ;;
     esac
 fi
 
-echo -e "${BLUE}[*] Stopping existing services...${NC}"
+printf "${BLUE}[*] Stopping existing services...${NC}\n"
 pkill -9 -f rustgovernor || true
 sudo rm -f "$TARGET_PATH"
 
-echo -e "${BLUE}[*] Copying binary to $TARGET_PATH...${NC}"
+printf "${BLUE}[*] Copying binary to %s...${NC}\n" "$TARGET_PATH"
 sudo cp ./rustgovernor "$TARGET_PATH"
 sudo chmod +x "$TARGET_PATH"
 
-echo -e "${BLUE}[*] Creating systemd service file at $SERVICE_PATH...${NC}"
+printf "${BLUE}[*] Creating systemd service file at %s...${NC}\n" "$SERVICE_PATH"
 cat <<EOF | sudo tee "$SERVICE_PATH" > /dev/null
 [Unit]
 Description=RustGovernor Thermal Management and Custom slot files management
@@ -48,8 +49,8 @@ User=root
 WantedBy=multi-user.target
 EOF
 
-echo -e "${BLUE}[*] Reloading and starting systemd daemon...${NC}"
+printf "${BLUE}[*] Reloading and starting systemd daemon...${NC}\n"
 sudo systemctl daemon-reload
 sudo systemctl enable --now rustgovernor
 
-echo -e "${GREEN}==> RustGovernor successfully installed and started!${NC}"
+printf "${GREEN}==> RustGovernor successfully installed and started!${NC}\n"
