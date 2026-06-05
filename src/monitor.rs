@@ -4,8 +4,7 @@ use sysinfo::{CpuRefreshKind, RefreshKind, System};
 
 use crate::backend::{Config, FilePaths, GovernorState, PowerManager};
 
-pub fn monitor_handling() {
-    let config = Config::load().unwrap();
+pub fn monitor_handling(config: Config) {
     let paths = FilePaths::config_file_paths().unwrap();
     let mut state = GovernorState::new();
     let mut sys =
@@ -28,9 +27,9 @@ pub fn monitor_handling() {
                 .unwrap_or_else(|_| "Unknown".into());
 
         let turbo_val = fs::read_to_string(&paths.boost_paths[0].join("no_turbo"))
-            .unwrap_or_else(|_| "1".into());
+            .unwrap_or_else(|_| "Unknown".into());
         let turbo_status = turbo_val.trim();
-        println!("=== RustGovernor Monitor [v1.1.0] ===");
+        println!("=== RustGovernor Monitor [v1.1.2] ===");
         println!(
             "Source: [{}] | Avg Load: {:.2}%",
             if is_ac { "AC" } else { "DC" },
@@ -39,7 +38,7 @@ pub fn monitor_handling() {
         println!("Governor:  {}", real_gov.trim());
         println!("EPP:       {}", real_epp.trim());
         println!("Turbo:     {}", turbo_status);
-        // 2. Print Custom Slots
+        // Print Custom Slots
         let custom_vec = if is_ac {
             &config.ac_custom
         } else {
@@ -53,14 +52,16 @@ pub fn monitor_handling() {
                 }
 
                 // Get the target value based on current load
-                let active_val = slot
+                let active_val_opt = slot
                     .thresholds
                     .iter()
                     .filter(|(t, _)| state.avg_load >= *t)
                     .last()
-                    .map(|(_, v)| v)
-                    .map_or("None", |v| v);
-
+                    .map(|(_, v)| v);
+                let active_val = match active_val_opt {
+                    Some(val)  => val,
+                    None => {continue;},
+                };
                 let mut paths_to_check = Vec::new();
 
                 // Collect all applicable paths (handles subfolders or direct)
@@ -93,25 +94,27 @@ pub fn monitor_handling() {
                             if content.trim() == active_val.trim() {
                                 success_count += 1;
                             } else {
+                                let display_path = format_path_display(&path);
                                 slot_errors.push(format!(
-                                    "Mismatch in {:?}: Found '{}' expected '{}'",
-                                    path.file_name().unwrap_or_default(),
+                                    "Mismatch in \"{}\": Found '{}' expected '{}'",
+                                    display_path,
                                     content.trim(),
                                     active_val.trim()
                                 ));
                             }
                         }
                         Err(e) => {
+                            let display_path = format_path_display(&path);
                             // Specifically check for permission issues
                             if e.kind() == std::io::ErrorKind::PermissionDenied {
                                 slot_errors.push(format!(
                                     "ReadErr in {:?}: Permission Denied. Please run with sudo.",
-                                    path.file_name().unwrap_or_default()
+                                    display_path
                                 ));
                             } else {
                                 slot_errors.push(format!(
                                     "ReadErr in {:?}: {}",
-                                    path.file_name().unwrap_or_default(),
+                                    display_path,
                                     e
                                 ));
                             }
@@ -134,7 +137,7 @@ pub fn monitor_handling() {
                     slot.slot_id, slot.file_name, active_val, status_text
                 );
 
-                // 5. Print Detailed Errors (ReadErr / Mismatch) only if they exist
+                // Print Detailed Errors (ReadErr / Mismatch) only if they exist
                 for err in slot_errors {
                     println!("      ┗━> [!] {}", err);
                 }
@@ -142,7 +145,26 @@ pub fn monitor_handling() {
         }
 
         println!("\n[!] Press Ctrl+C to exit.");
-        std::io::Write::flush(&mut std::io::stdout()).unwrap();
         thread::sleep(Duration::from_secs(1));
+    }
+}
+
+// Put this helper function directly above monitor_handling()
+fn format_path_display(path: &std::path::Path) -> String {
+    let file_name = path
+        .file_name()
+        .map(|os_str| os_str.to_string_lossy())
+        .unwrap_or_default();
+
+    let parent_name = path
+        .parent()
+        .and_then(|p| p.file_name())
+        .map(|os_str| os_str.to_string_lossy())
+        .unwrap_or_default();
+
+    if parent_name.is_empty() {
+        file_name.into_owned()
+    } else {
+        format!("{}/{}", parent_name, file_name)
     }
 }
