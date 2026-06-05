@@ -6,8 +6,8 @@ use crate::{
     monitor::monitor_handling,
 };
 use clap::Parser;
+use single_instance::SingleInstance;
 use std::{
-    os::unix::net::UnixListener,
     process::{self, exit},
     thread,
     time::Duration,
@@ -37,12 +37,18 @@ struct Args {
 fn main() {
     let args = Args::parse();
     if std::env::consts::OS != "linux" {
-        eprintln!("Error: This binary is designed for Linux only (to access /sys).");
+        eprintln!("Error: This binary is designed for Linux only.");
         process::exit(1);
     }
     let mut sys =
         System::new_with_specifics(RefreshKind::nothing().with_cpu(CpuRefreshKind::everything()));
-    let config = Config::load().unwrap();
+    let config = match Config::load() {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            eprintln!("Config parsing error: {}", e);
+            exit(1)
+        }
+    };
     let paths = FilePaths::config_file_paths().unwrap();
     let mut state = GovernorState::new();
     sys.refresh_cpu_all();
@@ -52,22 +58,29 @@ fn main() {
         std::process::exit(1);
     }
     if args.monitor {
-        return monitor_handling();
+        return monitor_handling(config);
     }
 
     if args.run {
-        let _lock = match UnixListener::bind("\0rustgovernor") {
-            Ok(lock) => lock,
-            Err(_) => {
-                eprintln!("[!] RustGovernor is already running!");
-                exit(1);
+        let single_instance_result = SingleInstance::new("rustgovernor_lock");
+        let _single_instance = match single_instance_result {
+            Ok(instance) => match instance.is_single() {
+                true => instance,
+                false => {
+                    eprintln!("[!] RustGovernor is already running!");
+                    exit(1)
+                }
+            },
+            Err(e) => {
+                println!("Could not get single_instance: {}", e);
+                exit(1)
             }
         };
         let uid = std::process::Command::new("id")
             .arg("-u")
             .output()
             .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-            .unwrap_or_else(|_| "1".to_string());
+            .unwrap_or_else(|_| "Unknown".to_string());
         if uid != "0" {
             eprintln!("Error: RustGovernor must be run with sudo/root permissions.");
             std::process::exit(1);
@@ -85,52 +98,39 @@ fn main() {
             let changed = state.last_ac_status != Some(is_ac);
             state.last_ac_status = Some(is_ac);
 
-            let (mut t_governor, mut t_turbo) = if is_ac {
-                ("performance", 0)
-            } else {
-                ("powersave", 0)
-            };
-            let mut t_epp = if is_ac {
-                "balanced_performance".to_string()
-            } else {
-                "power".to_string()
-            };
+            let mut t_governor = Option::None;
+            let mut t_turbo = Option::None;
+            let mut t_epp = Option::None;
             if is_ac {
                 for (threshold, val) in &config.ac_governor {
-                    if state.avg_load <= *threshold {
-                        t_governor = val;
-                        break;
+                    if state.avg_load >= *threshold {
+                        t_governor = Some(val);
                     }
                 }
                 for (threshold, val) in &config.ac_turbo {
-                    if state.avg_load <= *threshold {
-                        t_turbo = *val as i32;
-                        break;
+                    if state.avg_load >= *threshold {
+                        t_turbo = Some(val);
                     }
                 }
                 for (threshold, val) in &config.ac_epp {
-                    if state.avg_load <= *threshold {
-                        t_epp = val.to_string();
-                        break;
+                    if state.avg_load >= *threshold {
+                        t_epp = Some(val);
                     }
                 }
             } else {
                 for (threshold, _val) in &config.dc_governor {
-                    if state.avg_load <= *threshold {
-                        t_governor = &config.dc_cap_governor;
-                        break;
+                    if state.avg_load >= *threshold {
+                        t_governor = Some(&config.dc_cap_governor);
                     }
                 }
                 for (threshold, val) in &config.dc_turbo {
-                    if state.avg_load <= *threshold {
-                        t_turbo = *val as i32;
-                        break;
+                    if state.avg_load >= *threshold {
+                        t_turbo = Some(val);
                     }
                 }
                 for (threshold, val) in &config.dc_epp {
-                    if state.avg_load <= *threshold {
-                        t_epp = val.to_string();
-                        break;
+                    if state.avg_load >= *threshold {
+                        t_epp = Some(val);
                     }
                 }
             }
@@ -143,9 +143,9 @@ fn main() {
             apply_hardware_settings(
                 &mut state,
                 &paths,
-                t_governor.to_string(),
-                t_turbo as u32,
-                t_epp,
+                t_governor.cloned(),
+                t_turbo.cloned(),
+                t_epp.cloned(),
                 is_ac,
                 changed,
             );
