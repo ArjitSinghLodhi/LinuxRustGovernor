@@ -9,6 +9,13 @@ repository = "https://github.com/ArjitSinghLodhi/RustGovernor"
 clap = { version = "4.5.31", features = ["derive"] }
 anyhow = "1.0.95"
 sysinfo = "0.38.3"
+single-instance = "0.3.3"
+
+[profile.release.package."*"]
+opt-level = 3
+codegen-units = 1
+strip = true
+debug = false
 
 [profile.release]
 lto = "fat"
