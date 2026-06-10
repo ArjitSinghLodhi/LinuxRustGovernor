@@ -17,9 +17,10 @@ I was first trying to port my Windows 11 version of this, then it turned into cu
 - **Config** This is the main part, it by default only managed EPP, Governor and turbo boost (Intel by default) but you can also write in the custom slots.
 
 ## Installation
+Requires root priviliges.
 
 1. First download the rustgovernor binary and install.sh
-2. Then run install.sh it'll copy the binary to /usr/local/bin and setup the service for you.
+2. Then run install.sh with root it'll copy the binary to /usr/local/bin and setup the service for you.
 3. Then you can reboot and let it run
 
 ### Uninstallation Instructions
@@ -59,5 +60,15 @@ Its main purpose is to allow you to connect anything with your average CPU load 
 
 it also has sub_check so you can write to all the subfolders in the directory which have the specified file and write the same value to all of them with one slot instead of writing each slot manually for each folder if they're in the same directroy with same files
 
-## ⚖️ License
-MIT - This is just a program I made myself to fix my temps, do whatever you want with it.
+## ⚖️ License & Credits
+
+This project is licensed under the **MIT License**. 
+
+**Disclaimer:** This is shared "as-is" for personal use. It modifies low-level hardware (TDP, fans, etc.). I am not responsible for any hardware damage or instability. **Use at your own risk.**
+
+### Third-Party Attribution
+The pre-compiled binary includes code from the following open-source projects, used under their respective MIT/Apache-2.0 licenses:
+- **clap**: (c) Kevin K. et al.
+- **sysinfo**: (c) Guillaume Gomez
+- **single-instance**: (c) hhow0627
+
