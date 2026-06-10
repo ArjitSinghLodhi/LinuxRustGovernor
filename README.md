@@ -71,4 +71,4 @@ The pre-compiled binary includes code from the following open-source projects, u
 - **clap**: (c) Kevin K. et al.
 - **sysinfo**: (c) Guillaume Gomez
 - **single-instance**: (c) hhow0627
-
+- **anyhow**: (c) David Tolnay
